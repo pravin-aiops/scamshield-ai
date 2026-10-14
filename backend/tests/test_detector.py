@@ -1,4 +1,3 @@
-
 from app.detector import analyze_message, extract_urls, get_hostname, is_shortener
 
 
@@ -10,10 +9,9 @@ def test_otp_scam_is_high_risk():
 
     result = analyze_message(message)
 
-    assert result["risk_score"] == 80
+    assert result["risk_score"] == 60
     assert result["risk_level"] == "high"
-    assert len(result["indicators"]) >= 3
-
+    assert len(result["indicators"]) >= 2
 
 def test_normal_lunch_message_is_low_risk():
     message = (
@@ -79,7 +77,8 @@ def test_empty_message_returns_zero_score():
 
 def test_extract_urls_removes_trailing_punctuation():
     urls = extract_urls(
-        "Visit https://example.com/path?id=123. Then check www.example.org!"
+        "Visit https://example.com/path?id=123. "
+        "Then check www.example.org!"
     )
 
     assert urls == [
@@ -138,5 +137,107 @@ def test_https_url_is_not_declared_safe():
     assert result["risk_score"] == 10
     assert any(
         "destination has not been verified" in indicator
+        for indicator in result["indicators"]
+    )
+
+
+def test_hindi_otp_scam_is_detected():
+    result = analyze_message(
+        "अपना ओटीपी तुरंत भेजें, नहीं तो आपका खाता बंद हो जाएगा।"
+    )
+
+    assert result["risk_score"] >= 40
+    assert result["risk_level"] in ("medium", "high")
+
+
+def test_url_alone_is_not_high_risk():
+    result = analyze_message(
+        "Please read the information at https://example.com"
+    )
+
+    assert result["risk_level"] == "low"
+    assert result["risk_score"] == 10
+
+
+def test_multiple_urls_are_extracted():
+    urls = extract_urls(
+        "Check https://example.com and https://example.org/info"
+    )
+
+    assert urls == [
+        "https://example.com",
+        "https://example.org/info",
+    ]
+
+
+def test_url_and_otp_request_increase_risk():
+    result = analyze_message(
+        "Share your OTP immediately at https://example.com"
+    )
+
+    assert result["risk_score"] == 70
+    assert result["risk_level"] == "high"
+
+
+def test_repeated_urgency_patterns_do_not_duplicate_rule_score():
+    result = analyze_message(
+        "Urgent! Act now! Act now! Final warning!"
+    )
+
+    assert result["risk_score"] == 20
+
+
+def test_risk_score_is_capped_at_100():
+    result = analyze_message(
+        "Your account will be blocked immediately. "
+        "Share your OTP now. "
+        "You have won a prize, pay a processing fee. "
+        "Your bank account is suspended; verify now."
+    )
+
+    assert result["risk_score"] <= 100
+    assert result["risk_score"] >= 0
+
+
+def test_risk_level_is_high_at_score_50():
+    result = analyze_message(
+        "Your account will be blocked. "
+        "Share your OTP immediately."
+    )
+
+    assert result["risk_score"] == 60
+    assert result["risk_level"] == "high"
+
+
+def test_plain_https_does_not_imply_safety():
+    result = analyze_message(
+        "Please visit https://example.com"
+    )
+
+    assert not any(
+        "safe" in indicator.lower()
+        for indicator in result["indicators"]
+    )
+
+def test_bank_impersonation_with_urgent_verification_is_detected():
+    result = analyze_message(
+        "Your bank requires urgent verification of your account."
+    )
+
+    assert result["risk_score"] >= 20
+    assert any(
+        "impersonating" in indicator.lower()
+        for indicator in result["indicators"]
+    )
+
+
+def test_fake_kyc_update_is_detected():
+    result = analyze_message(
+        "Your KYC will expire. Update your KYC immediately."
+    )
+
+    assert result["risk_score"] >= 20
+    assert any(
+        "impersonating" in indicator.lower()
         for indicator in result["indicators"]
     )

@@ -73,17 +73,16 @@ RULES = [
         "reason": "A prize, reward, payment, or money-transfer pattern was detected.",
     },
     {
-        "name": "impersonation",
-        "patterns": [
-            r"\b(?:bank|account).{0,30}(?:verify|suspended|blocked)\b",
-            r"\bkyc.{0,20}(?:update|expire|suspend)\b",
-            r"\b(?:police|customs|government).{0,30}(?:payment|fine|arrest)\b",
-            r"\b(?:bank|government|police).{0,30}(?:urgent|immediately|verify)\b",
-            r"बैंक.{0,25}(?:खाता|केवाईसी|सत्यापन)",
-            r"केवाईसी.{0,20}(?:अपडेट|बंद|समाप्त)",
-        ],
-        "score": 20,
-        "reason": "The message may be impersonating an organisation or authority.",
+    "name": "impersonation",
+    "patterns": [
+        r"\b(?:bank|government|police|customs).{0,30}(?:payment|fine|arrest|verify|urgent|immediately)\b",
+        r"\b(?:official|security team|support team).{0,30}(?:verify|payment|password|otp)\b",
+        r"\bkyc.{0,20}(?:update|expire|suspend)\b",
+        r"बैंक.{0,25}(?:के नाम पर|बनकर|प्रतिनिधि|केवाईसी)",
+        r"केवाईसी.{0,20}(?:अपडेट|समाप्त|सत्यापन)",
+    ],
+    "score": 20,
+    "reason": "The message may be impersonating an organisation or authority.",
     },
 ]
 
