@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -5,6 +6,8 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -31,6 +34,7 @@ def check_url_reputation(urls: list[str]) -> dict[str, Any]:
         }
 
     if not API_KEY:
+        logger.warning("Safe Browsing check skipped: API key is not configured.")
         return {
             "status": "unavailable",
             "checked_count": 0,
@@ -59,9 +63,7 @@ def check_url_reputation(urls: list[str]) -> dict[str, Any]:
                 ],
                 "platformTypes": ["ANY_PLATFORM"],
                 "threatEntryTypes": ["URL"],
-                "threatEntries": [
-                    {"url": url} for url in batch
-                ],
+                "threatEntries": [{"url": url} for url in batch],
             },
         }
 
@@ -75,7 +77,39 @@ def check_url_reputation(urls: list[str]) -> dict[str, Any]:
             response.raise_for_status()
             data = response.json()
 
-        except (httpx.HTTPError, ValueError):
+        except httpx.HTTPStatusError as exc:
+            # Do not log the request URL: it contains the API key.
+            status_code = exc.response.status_code
+            try:
+                error_data = exc.response.json()
+                error_info = error_data.get("error", {})
+                error_status = error_info.get("status", "UNKNOWN")
+                error_message = error_info.get("message", "No message provided")
+            except ValueError:
+                error_status = "UNKNOWN"
+                error_message = "Non-JSON error response"
+
+            logger.warning(
+                "Safe Browsing API returned HTTP %s; status=%s; message=%s",
+                status_code,
+                error_status,
+                error_message,
+            )
+
+            return {
+                "status": "unavailable",
+                "checked_count": checked_count,
+                "threats": [],
+                "message": (
+                    "URL reputation checking could not be completed."
+                ),
+            }
+
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning(
+                "Safe Browsing request failed (%s).",
+                type(exc).__name__,
+            )
             return {
                 "status": "unavailable",
                 "checked_count": checked_count,
