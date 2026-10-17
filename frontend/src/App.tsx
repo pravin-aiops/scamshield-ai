@@ -18,12 +18,21 @@ type UrlReputation = {
   message: string;
 };
 
+type AiAnalysis = {
+  status: "available" | "unavailable" | "skipped";
+  model?: string;
+  summary: string;
+  suspicious_signals: string[];
+  recommended_actions: string[];
+};
+
 type AnalysisResult = {
   risk_score: number;
   risk_level: "low" | "medium" | "high";
   indicators: string[];
   recommendations: string[];
   url_reputation?: UrlReputation;
+  ai_analysis?: AiAnalysis;
 };
 
 type Language = "en" | "hi";
@@ -51,6 +60,16 @@ const hindiTranslations: Record<string, string> = {
     "इस लिंक को न खोलें और इसमें अपनी निजी जानकारी दर्ज न करें।",
   "Do not open an unexpected link until you verify its destination independently.":
     "अनजान लिंक को खोलने से पहले उसकी मंज़िल की स्वतंत्र रूप से पुष्टि करें।",
+  "No configured scam indicators were detected.":
+    "जाँच में धोखाधड़ी के तय संकेत नहीं मिले।",
+  "No strong scam patterns were detected by these rules.":
+    "इन नियमों के आधार पर धोखाधड़ी के स्पष्ट संकेत नहीं मिले।",
+  "Still verify unexpected requests through official channels.":
+    "फिर भी, किसी अनपेक्षित अनुरोध की पुष्टि आधिकारिक माध्यम से करें।",
+  "Never share an OTP, PIN, or password with anyone, even if the message looks urgent.":
+    "संदेश कितना भी ज़रूरी लगे, अपना ओटीपी, पिन या पासवर्ड किसी के साथ साझा न करें।",
+  "Do not trust threats about account blocking without independent verification.":
+    "खाता बंद करने की धमकी पर स्वतंत्र पुष्टि किए बिना भरोसा न करें।",
 };
 
 function App() {
@@ -112,6 +131,19 @@ function App() {
       threatCount: "Threat matches",
       urlDisclaimer:
         "Reputation checks can miss new or unknown threats. Always verify links independently.",
+      aiTitle: "Smart Message Insights",
+      aiSummary: "Message context",
+      aiSignals: "Warning signs to consider",
+      aiActions: "Recommended safety steps",
+      aiFallback:
+        "The standard safety checks are still available, but extra message insights could not be generated right now.",
+      aiDisclaimer:
+        "This is an automated interpretation, not proof of fraud. Use the warning signs and verified evidence to make your decision.",
+      examplesTitle: "Try a sample message",
+      examplesHint: "Choose an example to see how the checker works.",
+      exampleOtp: "Urgent OTP request",
+      examplePrize: "Prize / fee scam",
+      exampleNormal: "Normal message",
     },
     hi: {
       subtitle: "भरोसा करने से पहले जाँचें।",
@@ -165,12 +197,37 @@ function App() {
       threatCount: "खतरे के संकेत",
       urlDisclaimer:
         "नई या अज्ञात धोखाधड़ी वाली वेबसाइटें जाँच में छूट सकती हैं। लिंक की स्वतंत्र रूप से पुष्टि करें।",
+      aiTitle: "संदेश की विस्तृत जाँच",
+      aiSummary: "संदेश का संदर्भ",
+      aiSignals: "ध्यान देने योग्य संकेत",
+      aiActions: "सुरक्षा के लिए सुझाए गए कदम",
+      aiFallback:
+        "सामान्य सुरक्षा जाँच का परिणाम उपलब्ध है, लेकिन अभी संदेश के बारे में अतिरिक्त जानकारी नहीं मिल सकी।",
+      aiDisclaimer:
+        "यह स्वचालित व्याख्या है, धोखाधड़ी का पक्का प्रमाण नहीं। निर्णय लेने से पहले मिले संकेतों और उपलब्ध प्रमाणों की जाँच करें।",
+      examplesTitle: "उदाहरण संदेश आज़माएँ",
+      examplesHint: "जाँच का तरीका देखने के लिए कोई उदाहरण चुनें।",
+      exampleOtp: "ओटीपी की जल्दबाज़ी",
+      examplePrize: "इनाम / फीस वाला संदेश",
+      exampleNormal: "सामान्य संदेश",
     },
   }[language];
 
   function translateText(text: string): string {
     if (language === "en") return text;
     return hindiTranslations[text] ?? text;
+  }
+
+  function useExample(example: "otp" | "prize" | "normal") {
+    const examples = {
+      otp: "Your bank account will be blocked today. Share your OTP immediately.",
+      prize: "Congratulations! You won a prize. Pay a processing fee now to claim your reward.",
+      normal: "Hi, let's meet for lunch at 1 PM.",
+    };
+    setMessage(examples[example]);
+    setResult(null);
+    setError("");
+    stopSpeaking();
   }
 
   async function analyseMessage() {
@@ -189,7 +246,7 @@ function App() {
       const response = await fetch(`${API_URL}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: message.trim() }),
+        body: JSON.stringify({ message: message.trim(), language }),
       });
 
       if (!response.ok) throw new Error("Analysis failed");
@@ -238,6 +295,9 @@ function App() {
   function getExplanation(data: AnalysisResult) {
     const reasons = data.indicators.map(translateText).join(" ");
     const advice = data.recommendations.map(translateText).join(" ");
+    const aiSummary = data.ai_analysis?.status === "available"
+      ? data.ai_analysis.summary
+      : "";
 
     if (language === "hi") {
       let explanation =
@@ -253,6 +313,7 @@ function App() {
           `${getUrlStatusDetail(data.url_reputation.status)}।`;
       }
 
+      if (aiSummary) explanation += ` ${copy.aiSummary}: ${aiSummary}।`;
       return `${explanation} ${copy.automated}`;
     }
 
@@ -269,6 +330,7 @@ function App() {
         `${getUrlStatusDetail(data.url_reputation.status)}.`;
     }
 
+    if (aiSummary) explanation += ` ${copy.aiSummary}: ${aiSummary}.`;
     return `${explanation} ${copy.automated}`;
   }
 
@@ -307,7 +369,9 @@ function App() {
         </a>
 
         <button
+          type="button"
           className="language-button"
+          aria-label={language === "en" ? "Switch language to Hindi" : "Switch language to English"}
           onClick={() => {
             stopSpeaking();
             setError("");
@@ -328,6 +392,24 @@ function App() {
         <h1>{copy.heading}</h1>
         <p>{copy.description}</p>
 
+        <div className="examples-panel" aria-label={copy.examplesTitle}>
+          <div className="examples-copy">
+            <strong>{copy.examplesTitle}</strong>
+            <span>{copy.examplesHint}</span>
+          </div>
+          <div className="example-buttons">
+            <button type="button" className="example-chip example-chip-warning" onClick={() => useExample("otp")}>
+              <span aria-hidden="true">⚠</span> {copy.exampleOtp}
+            </button>
+            <button type="button" className="example-chip example-chip-warning" onClick={() => useExample("prize")}>
+              <span aria-hidden="true">✦</span> {copy.examplePrize}
+            </button>
+            <button type="button" className="example-chip" onClick={() => useExample("normal")}>
+              <span aria-hidden="true">✓</span> {copy.exampleNormal}
+            </button>
+          </div>
+        </div>
+
         <section className="analyser-card">
           <label htmlFor="message">{copy.heading}</label>
 
@@ -344,6 +426,7 @@ function App() {
             <span>{message.length}/10000</span>
 
             <button
+              type="button"
               className="clear-button"
               onClick={() => {
                 setMessage("");
@@ -357,6 +440,7 @@ function App() {
           </div>
 
           <button
+            type="button"
             className="analyse-button"
             onClick={analyseMessage}
             disabled={loading}
@@ -435,6 +519,51 @@ function App() {
               </section>
             )}
 
+            {result.ai_analysis && (
+              <section
+                className={`ai-analysis ai-${result.ai_analysis.status}`}
+                aria-live="polite"
+              >
+                <div className="ai-analysis-heading">
+                  <span className="ai-analysis-icon" aria-hidden="true">✦</span>
+                  <h4>{copy.aiTitle}</h4>
+                </div>
+
+                {result.ai_analysis.status === "available" ? (
+                  <div className="ai-insight-content">
+                    <h5>{copy.aiSummary}</h5>
+                    <p>{result.ai_analysis.summary}</p>
+
+                    {result.ai_analysis.suspicious_signals.length > 0 && (
+                      <>
+                        <h5>{copy.aiSignals}</h5>
+                        <ul>
+                          {result.ai_analysis.suspicious_signals.map((signal, index) => (
+                            <li key={`ai-signal-${index}`}>{signal}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                    {result.ai_analysis.recommended_actions.length > 0 && (
+                      <>
+                        <h5>{copy.aiActions}</h5>
+                        <ul className="advice-list">
+                          {result.ai_analysis.recommended_actions.map((action, index) => (
+                            <li key={`ai-action-${index}`}>{action}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <p className="ai-fallback">{copy.aiFallback}</p>
+                )}
+
+                <p className="ai-analysis-disclaimer">{copy.aiDisclaimer}</p>
+              </section>
+            )}
+
             <h4>{copy.why}</h4>
             <ul>
               {result.indicators.map((indicator, index) => (
@@ -449,11 +578,11 @@ function App() {
               ))}
             </ul>
 
-            <button className="listen-button" onClick={speakResult}>
+            <button type="button" className="listen-button" onClick={speakResult}>
               🔊 {copy.listen}
             </button>
 
-            <button className="clear-button" onClick={stopSpeaking}>
+            <button type="button" className="clear-button" onClick={stopSpeaking}>
               {copy.stop}
             </button>
 

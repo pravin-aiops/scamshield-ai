@@ -1,3 +1,4 @@
+from typing import Literal
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,12 +6,13 @@ from pydantic import BaseModel, Field
 
 from .detector import analyze_message, extract_urls
 from .safe_browsing import check_url_reputation
+from .ai_analyzer import analyze_with_ai
 
 
 app = FastAPI(
     title="ScamShield AI API",
     description="API for scam message risk analysis.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 app.add_middleware(
@@ -29,6 +31,10 @@ class AnalyzeRequest(BaseModel):
         max_length=10000,
         description="Message to analyse for potential scam indicators.",
     )
+    language: Literal["en", "hi"] = Field(
+        default="en",
+        description="Language for the AI explanation: English (en) or Hindi (hi).",
+    )
 
 
 @app.get("/health", tags=["Health"])
@@ -36,7 +42,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": "scamshield-ai-api",
-        "version": "0.1.0",
+        "version": "0.2.0",
     }
 
 
@@ -50,25 +56,17 @@ def root():
 
 @app.post("/analyze", tags=["Scam Analysis"])
 def analyze(request: AnalyzeRequest):
-    # Run the existing message detector first.
+    # Keep the established rule-based detector as the primary scorer.
     result = analyze_message(request.message)
 
-    # Extract URLs using the existing detector's URL extraction logic.
+    # Check URLs with the existing Google Safe Browsing integration.
     urls = extract_urls(request.message)
-
-    # Check URL reputation. If Google is unavailable, the existing
-    # detector result is preserved.
     reputation = check_url_reputation(urls)
     result["url_reputation"] = reputation
 
+    # Preserve existing behavior for known threat URLs.
     if reputation["status"] == "unsafe":
-        # Raise the score for a URL reported as a known threat.
-        result["risk_score"] = min(
-            100,
-            result.get("risk_score", 0) + 50,
-        )
-
-        # Recalculate the risk level using existing thresholds.
+        result["risk_score"] = min(100, result.get("risk_score", 0) + 50)
         score = result["risk_score"]
 
         if score >= 50:
@@ -81,9 +79,16 @@ def analyze(request: AnalyzeRequest):
         result.setdefault("indicators", []).append(
             "Google Safe Browsing reported a known threat URL."
         )
-
         result.setdefault("recommendations", []).append(
             "Do not open this URL or enter personal information."
         )
+
+    # AI explains the message in the selected UI language. It does not set
+    # or change the detector's risk score or risk level.
+    result["ai_analysis"] = analyze_with_ai(
+        request.message,
+        result,
+        language=request.language,
+    )
 
     return result
