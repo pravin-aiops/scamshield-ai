@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
+      AI_ENABLED: "false"
       GOOGLE_SAFE_BROWSING_API_KEY: ${GOOGLE_SAFE_BROWSING_API_KEY:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:0.5b
@@ -29,7 +30,7 @@ services:
       args:
         VITE_API_URL: /api
     ports:
-      - "8080:80"
+      - "80:80"
     depends_on:
       backend:
         condition: service_healthy
