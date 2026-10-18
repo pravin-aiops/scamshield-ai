@@ -1088,3 +1088,54 @@ body {
     transition: none;
   }
 }
+
+
+/* Final layout pass: wider workspace, clearer hierarchy, consistent cards */
+.app-shell { width: 100%; background: #f5f8f6; }
+.topbar { padding-inline: clamp(20px, 6vw, 88px); }
+.hero { width: min(100%, 1120px); max-width: 1120px; padding: clamp(38px, 5vw, 64px) 24px 42px; }
+.hero h1 { font-size: clamp(34px, 4.2vw, 52px); line-height: 1.2; letter-spacing: -1.1px; }
+.hero > p { max-width: 760px; line-height: 1.7; }
+.examples-panel { margin-top: 30px; padding: 22px; border: 1px solid #dfe9e2; border-radius: 18px; background: #fff; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 22px; }
+.examples-copy { display: flex; flex-direction: column; gap: 5px; min-width: 180px; }
+.examples-copy strong { font-size: 15px; }
+.examples-copy span { color: #728078; font-size: 13px; line-height: 1.5; }
+.example-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.example-chip { border: 1px solid #dce7df; border-radius: 999px; padding: 10px 14px; background: #f8fbf8; color: #284b39; font-size: 13px; font-weight: 700; line-height: 1.4; }
+.example-chip:hover { background: #edf6ef; border-color: #9bc8ad; }
+.example-chip-warning { color: #87570b; background: #fff9ed; border-color: #f0dfb9; }
+.analyser-card { margin-top: 22px; padding: clamp(20px, 3vw, 32px); border-radius: 22px; }
+.analyser-card label { font-size: 17px; }
+.analyser-card textarea { min-height: 190px; font-size: 16px; }
+.analyse-button { min-height: 54px; font-size: 16px; box-shadow: 0 8px 18px rgb(24 120 79 / 15%); }
+.result-section { width: min(100%, 1120px); max-width: 1120px; margin: 8px auto 56px; padding: 0 24px; }
+.result-section > h2 { margin-bottom: 18px; font-size: clamp(24px, 3vw, 32px); }
+.result-card { padding: clamp(22px, 3vw, 36px); border-radius: 22px; }
+.url-reputation, .ai-analysis { margin: 24px 0; padding: 22px; border-radius: 16px; }
+.ai-analysis-heading { display: flex; align-items: center; gap: 10px; }
+.ai-analysis-heading h4 { margin: 0; }
+.ai-analysis-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #e8f5ec; color: #18845a; }
+.ai-insight-content p, .url-reputation p { line-height: 1.75; overflow-wrap: anywhere; }
+.footer { padding: 28px 20px 36px; border-top: 1px solid #e5ebe7; background: #fff; }
+@media (max-width: 760px) {
+  .topbar { min-height: 66px; }
+  .hero { padding: 34px 16px 28px; }
+  .hero h1 { font-size: clamp(30px, 8vw, 40px); }
+  .examples-panel { display: block; padding: 17px; }
+  .examples-copy { margin-bottom: 14px; }
+  .example-buttons { justify-content: flex-start; }
+  .example-chip { max-width: 100%; white-space: normal; text-align: left; }
+  .analyser-card textarea { min-height: 160px; }
+  .result-section { padding: 0 16px; }
+  .risk-heading { align-items: flex-start; }
+  .score-circle { width: 74px; height: 74px; }
+  .url-reputation, .ai-analysis { padding: 17px; }
+}
+@media (max-width: 420px) {
+  .brand { font-size: 18px; }
+  .brand-icon { width: 34px; height: 34px; }
+  .language-button, .clear-button { padding: 9px 12px; }
+  .risk-heading { gap: 10px; }
+  .score-circle { width: 64px; height: 64px; }
+  .score-circle strong { font-size: 22px; }
+}
