@@ -69,6 +69,7 @@ jobs:
           environment-name: Scamshield-ai-env
           s3-bucket-name: scamshield-ai-deploy-482439369112
           version-label: scamshield-${{ github.sha }}
+          use-existing-application-version-if-available: true
           wait-for-deployment: true
           wait-for-environment-recovery: true
           deployment-timeout: 900
