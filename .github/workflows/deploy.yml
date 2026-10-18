@@ -67,6 +67,7 @@ jobs:
           aws-region: ap-southeast-2
           application-name: scamshield-ai
           environment-name: Scamshield-ai-env
+          s3-bucket-name: scamshield-ai-deploy-482439369112
           version-label: scamshield-${{ github.sha }}
           wait-for-deployment: true
           wait-for-environment-recovery: true
