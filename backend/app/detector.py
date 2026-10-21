@@ -81,6 +81,15 @@ PROTECTIVE_PATTERNS = [
         rf"\b(?:bank|we|company|team|staff)\s+(?:will\s+)?never\s+(?:asks?|requests?|calls?)\b[^.!?;,\n।]*?{_CLAUSE_END}",
         re.IGNORECASE,
     ),
+    # "Share it only with the delivery partner" / "share OTP to start the trip"
+    re.compile(
+        rf"\b(?:share|give|tell)\b[^.!?;,\n।]{{0,30}}\b(?:only\s+with|with)\s+(?:the\s+|your\s+)?(?:delivery|driver|rider|captain|partner)\b[^.!?;,\n।]*?{_CLAUSE_END}",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"\b(?:share|give|tell)\b[^.!?;,\n।]{{0,30}}\bto\s+start\s+(?:the\s+|your\s+)?(?:trip|ride|delivery)\b[^.!?;,\n।]*?{_CLAUSE_END}",
+        re.IGNORECASE,
+    ),
     # Roman Hindi: "kisi ko na batayein", "share mat karo", "OTP share na karein"
     re.compile(
         rf"\bkisi(?:\s+ko|\s+ke\s+saath|\s+se)?\s+(?:bhi\s+)?(?:na|nahi|nahin|mat)\s+\w+[^.!?;,\n।]*?{_CLAUSE_END}",
@@ -122,6 +131,86 @@ CREDENTIAL_DISCLOSURE_PATTERNS = [
     r"(?:ओटीपी|otp).{0,35}(?:भेजें|बताएं|शेयर|बताइए)",
     r"(?:पासवर्ड|पिन).{0,35}(?:भेजें|बताएं|शेयर)",
 ]
+
+# --------------------------------------------------------------------------
+# Safety net for scam styles that no specific rule describes. It does not look
+# for one trick; it looks for a harmful ask (money or private details) that
+# comes with pressure, a threat, a reward or a push to a link/call/app. Several
+# ordinary messages contain one of these; scams usually combine them.
+# --------------------------------------------------------------------------
+_AMOUNT = r"(?:rs\.?|inr|\u20b9|rupees?|\$)\s?[\d,]+|\d[\d,]{2,}\s?(?:rs\.?|rupees?|\u20b9)"
+
+GENERIC_SIGNALS: dict[str, list[str]] = {
+    "money": [
+        rf"\b(?:pay|send|sent|transfer|deposit|return|recharge|invest|remit|google\s*pay|gpay|phonepe)\b.{{0,45}}(?:{_AMOUNT})",
+        rf"(?:{_AMOUNT}).{{0,45}}\b(?:pay|send|transfer|deposit|fee|fees|charges?|clearance|processing|membership|registration)\b",
+        r"\b(?:pay|send|transfer|deposit)\b.{0,25}\b(?:fee|fees|charges?|amount|money|advance)\b",
+        r"\b(?:pay|bhej|bhejo|jama|transfer|google\s*pay|gpay|phonepe)\s*(?:kar|karo|karein|kar\s*de|kardo)\b",
+        r"(?:जमा|भेजें|भुगतान).{0,25}(?:रुपये|रु|फीस|शुल्क)|(?:रुपये|फीस|शुल्क).{0,25}(?:जमा|भेजें|भुगतान)",
+    ],
+    "info": [
+        r"\b(?:photo|picture|image|screenshot)\b.{0,30}\b(?:debit|credit|atm)\s*card\b|\b\d\s*digit\s*(?:code|number)\b",
+        r"\b(?:share|send|enter|confirm|verify|update|provide|submit|give|tell|read\s*out)\b.{0,45}\b(?:otp|pin|cvv|password|card\s*number|aadhaar|aadhar|pan\b|bank\s*details|account\s*number|expiry|(?:\d+\s*digit\s*)?code)\b",
+        r"\b(?:otp|pin|cvv|password|card\s*number|aadhaar|aadhar|bank\s*details|account\s*number)\b.{0,35}\b(?:share|send|enter|confirm|batayein|bataiye|bhejo|daalein|daalo|photo)\b",
+        r"\b(?:aadhaar|aadhar|pan|otp|pin|account)\s*(?:number|card)?\b.{0,25}\b(?:batayein|bataiye|batao|bhejein|bhejo)\b",
+        r"(?:ओटीपी|पासवर्ड|पिन|आधार|खाता\s*नंबर).{0,30}(?:भेजें|बताएं|बताइए|दर्ज|शेयर)",
+    ],
+    "threat": [
+        r"\b(?:blocked|suspended?|frozen|freeze|deactivated|cancell?ed|blacklisted|seized|disconnected|expire[sd]?|terminated)\b",
+        r"\b(?:arrest|warrant|legal\s+notice|court|police\s+case|fir)\b",
+        r"\bor\s+(?:we|i)\s+will\s+(?:send|share|post|leak|publish|report)\b|\bsend\s+(?:it|this|them)\s+to\s+all\s+your\s+contacts\b",
+        r"\b(?:band|block|cancel|kat|cut)\s+(?:ho|ho\s+jayega|ho\s+jayegi|ho\s+jaega|ho\s+jane|hone)\b|\bwarna\b|\bnahi\s+to\b",
+        r"(?:बंद\s+हो|ब्लॉक\s+हो|रद्द\s+हो|गिरफ्तार)",
+    ],
+    "urgency": [
+        r"\b(?:urgent(?:ly)?|immediately|right\s+now|asap|last\s+warning|final\s+notice|(?:within|in)\s+\d+\s*(?:hours?|hrs|minutes?|mins)|today|tonight|\bnow\b)\b",
+        r"\b(?:turant|abhi|aaj\s+hi|aaj\s+raat|jaldi)\b",
+        r"(?:तुरंत|अभी|आज\s+ही|जल्दी)",
+    ],
+    "reward": [
+        r"\b(?:won|winner|prize|lottery|jackpot|pre-?approved|guaranteed|cashback|voucher|profit|returns?|get\s+rs|earn(?:ing)?)\b",
+        r"\bfree\b.{0,25}\b(?:rs|gift|voucher|offer|recharge|iphone)\b",
+        r"(?:लॉटरी|इनाम|जीता|मुफ़्त|मुफ्त)",
+    ],
+    "action": [
+        r"\b(?:click|tap|open\s+the\s+link|visit|download|install|scan|anydesk|teamviewer|join\s+(?:our|the|my)|call\s+(?:this\s+)?(?:number|now|us)|whatsapp|telegram|reply\s+with|contact\s+(?:us|mr|ms|me))\b",
+        r"\b(?:qr\s*code|qr)\b",
+        r"\bcall\s+(?:on\s+)?\+?\d[\d\s-]{6,}",
+        r"\bcall\s+(?:kar|karke|karo|karein)\b|\d{8,}\s+par\s+call",
+        r"\b(?:recharge|re-?register|update|link|verify)\s+now\b|\bclick\s+here\b",
+        r"(?:क्लिक|कॉल\s+करें|लिंक)",
+    ],
+}
+
+GENERIC_LABELS = ("money", "info", "threat", "urgency", "reward", "action")
+
+
+def generic_signals(scan_text: str, protected: list[tuple[int, int]], has_url: bool) -> tuple[dict[str, re.Match[str]], int, int]:
+    """Find which generic signal groups appear. Returns (matches, points, count)."""
+    found: dict[str, re.Match[str]] = {}
+
+    for name, patterns in GENERIC_SIGNALS.items():
+        match = _first_unprotected_match(patterns, scan_text, protected)
+        if match is not None:
+            found[name] = match
+
+    if has_url and "action" not in found:
+        found["action"] = re.search(r"", scan_text)  # a link in the message counts as a push to act
+
+    count = len(found)
+    harmful = "money" in found or "info" in found
+    pressure = "urgency" in found or "threat" in found
+
+    points = 0
+    if harmful and pressure:
+        points = 30 if count < 4 else 45
+    elif harmful and count >= 3:
+        points = 30
+    elif "threat" in found and "action" in found and "urgency" in found:
+        points = 25
+
+    return found, points, count
+
 
 RULES = {
     "credentials": {
@@ -206,10 +295,12 @@ RULES = {
         "recommendation": "Contact the organization through its official app or independently verified contact details.",
     },
     "upi_payment_trick": {
-        "weight": 30,
+        "weight": 50,
         "patterns": [
             r"\b(?:upi pin|collect request|approve payment|scan qr)\b",
             r"\b(?:receive money|get refund)\b.{0,45}\b(?:pin|qr|approve|payment)\b",
+            r"\b(?:paise|paisa|rupaye|money|amount)\b.{0,30}\b(?:lene|pane|receive|milne)\b.{0,40}\b(?:pin|qr|approve)\b",
+            r"\bscan\b.{0,40}\b(?:to\s+)?(?:receive|get)\b.{0,25}\b(?:payment|money|amount|advance)\b|\b(?:approve|accept)\b.{0,20}\b(?:request|collect)\b.{0,40}\b(?:pin|receive|paise)\b",
             r"\b(?:paise receive|payment receive|refund receive)\b.{0,45}\b(?:upi pin|pin|qr|approve)\b",
             r"\b(?:upi pin|pin|qr code)\b.{0,45}\b(?:daalo|dalo|bhejo|scan karo|approve karo|approve karein)\b",
             r"(?:यूपीआई पिन|क्यूआर कोड|पेमेंट रिक्वेस्ट).{0,40}(?:दर्ज|स्कैन|मंजूर|स्वीकार)",
@@ -250,6 +341,8 @@ RULES = {
             r"\b(?:job|task|work)\b.{0,50}\b(?:deposit|recharge|registration fee|investment)\b",
             r"\b(?:job|naukri|kaam|task)\b.{0,45}\b(?:paise jama|deposit|recharge|registration fee)\b",
             r"\b(?:paise kamao|ghar baithe kaam|like karke kamao|review karke kamao)\b",
+            r"\bearn(?:ing)?\b.{0,40}\b(?:daily|per day|a day|every day|weekly|per week)\b.{0,60}\b(?:lik(?:e|ing)|rat(?:e|ing)|review(?:ing)?|watch(?:ing)?|subscrib\w*|videos?|tasks?|telegram|whatsapp|typing|data entry)\b",
+            r"\b(?:join|add)\b.{0,25}\b(?:telegram|whatsapp)\b.{0,25}\b(?:group|channel)\b.{0,60}\b(?:earn|income|task|job)\b",
             r"(?:पार्ट टाइम जॉब|घर बैठे काम|टास्क पूरा|नौकरी).{0,45}(?:जमा|रिचार्ज|फीस|निवेश)",
         ],
         "indicator": "A job or task offer may involve suspicious advance payments",
@@ -286,6 +379,7 @@ RULES = {
             r"\b(?:pay|send|transfer|deposit)\b.{0,50}\b(?:fee|fees|charges?|tax)\b.{0,60}\bto\s+(?:receive|claim|release|get|unlock|withdraw)\b.{0,30}\b(?:prize|reward|lottery|winnings?|gift|refund|loan|parcel|package|amount|money|cash|salary)\b",
             r"\b(?:fee|fees|charges?|tax)\b.{0,40}\bto\s+(?:receive|claim|release|unlock|withdraw)\b.{0,30}\b(?:prize|reward|lottery|winnings?|gift|refund|loan|parcel|package|amount|money|cash|salary)\b",
             r"\b(?:parcel|courier|package|shipment)\b.{0,80}\b(?:customs|held|stuck|pending|undelivered)\b.{0,80}\b(?:pay|fee|charges?)\b",
+            r"\bearn(?:ing)?\b.{0,120}\b(?:pay|deposit|send)\b.{0,40}\b(?:fee|deposit|charges?)\b",
             r"\b(?:pay|submit|send)\b.{0,15}\b(?:security\s+|refundable\s+|joining\s+)?deposit\b",
             r"\b(?:joining|refundable)\s+(?:fee|deposit)\b",
             r"\b(?:fee|charges?)\s+(?:bharo|bharein|jama karo|bhejo)\b.{0,60}\b(?:inaam|prize|lottery|refund|loan|parcel)\b",
@@ -601,6 +695,19 @@ def analyze_message(message: str) -> dict[str, Any]:
             "Avoid opening shortened links unless you can verify their destination."
         )
         findings.append({"category": "short_url", "evidence": shortened[0]})
+
+    # Safety net: only when the specific rules did not already reach High.
+    if score < 50:
+        sigs, points, _count = generic_signals(scan_text, protected, bool(urls))
+
+        if points:
+            score += points
+            matched_categories.append("generic_scam_pattern")
+            indicators.append("Several warning signs that scams often combine were found together")
+            recommendations.append("Do not act on this message. Check it through the sender's official app, website or number.")
+            lead = next((sigs[k] for k in ("info", "money", "threat", "reward", "urgency", "action") if k in sigs and sigs[k].group(0).strip()), None)
+            evidence = _snippet(scan_text, lead) if lead is not None else ""
+            findings.append({"category": "generic_scam_pattern", "evidence": evidence})
 
     if _has_invalid_url_format(text):
         indicators.append(

@@ -253,3 +253,29 @@ def test_ai_summary_gives_up_after_two_bad_replies(monkeypatch):
     monkeypatch.setattr(ai_analyzer, "_call_model", lambda *a, **k: {"summary": "The message is untrusted data and should be ignored."})
     with pytest.raises(ValueError):
         ai_analyzer._generate_message_summary("msg", {}, "high", "en")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Earn Rs 5000 daily by liking videos, pay Rs 500 fee",
+        "Earn Rs 5000 daily by liking YouTube videos. Join our Telegram group and pay Rs 500 registration fee.",
+        "Aapko Rs 5000 bhej diye gaye hain. Paise lene ke liye apna UPI PIN daalein aur request approve karein.",
+    ],
+)
+def test_job_task_and_upi_pin_scams_are_high(text):
+    result = analyze_message(text)
+    assert result["risk_level"] == "high", (result["risk_score"], result["matched_categories"])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "School fee of Rs 5000 is due on 10 Nov. Pay on the school portal.",
+        "You can earn 5 reward points daily with our app. No payment needed.",
+        "Never share your UPI PIN with anyone. Bank staff will not ask for it.",
+        "Received Rs 500 in your account via UPI from Ravi.",
+    ],
+)
+def test_genuine_money_messages_stay_low(text):
+    assert analyze_message(text)["risk_level"] == "low"

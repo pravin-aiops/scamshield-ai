@@ -239,6 +239,23 @@ FINDING_CONTENT: dict[str, dict[str, dict[str, str]]] = {
             "action": "Bill sirf apni company ki official app ya website par dekhein, ya bill par chhape number par call karein.",
         },
     },
+    "generic_scam_pattern": {
+        "en": {
+            "label": "A request for money or private details together with pressure or a threat",
+            "why": "No single trick was recognised, but scams usually combine an ask for money or details with a deadline, a threat, a prize or a link to act on. This message does that.",
+            "action": "Do not pay or share anything. Contact the person or company through an official app, website or a number you already trust.",
+        },
+        "hi": {
+            "label": "पैसे या निजी जानकारी की माँग के साथ दबाव या धमकी",
+            "why": "कोई एक जाना-पहचाना तरीका नहीं मिला, लेकिन ठगी में अक्सर पैसे या जानकारी की माँग के साथ समय-सीमा, धमकी, इनाम या लिंक पर जाने का दबाव मिला होता है। इस संदेश में यही है।",
+            "action": "कुछ भी न भेजें और न बताएँ। उस व्यक्ति या कंपनी से आधिकारिक ऐप, वेबसाइट या अपने भरोसे के नंबर पर संपर्क करें।",
+        },
+        "hinglish": {
+            "label": "Paise ya private details ki maang ke saath pressure ya dhamki",
+            "why": "Koi ek jaana-pehchana tareeka nahi mila, lekin thagi me aksar paise ya details ki maang ke saath deadline, dhamki, inaam ya link par jaane ka pressure hota hai. Is message me wahi hai.",
+            "action": "Kuch bhi pay ya share na karein. Us vyakti ya company se official app, website ya apne bharose ke number par contact karein.",
+        },
+    },
     "url": {
         "en": {
             "label": "Contains a link",
@@ -307,6 +324,7 @@ FINDING_ORDER = [
     "courier_scam",
     "utility_disconnect",
     "urgency",
+    "generic_scam_pattern",
     "lookalike_domain",
     "short_url",
     "url",
