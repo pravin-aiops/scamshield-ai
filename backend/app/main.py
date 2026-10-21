@@ -1,94 +1,78 @@
+import os
 from typing import Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .detector import analyze_message, extract_urls
-from .safe_browsing import check_url_reputation
-from .ai_analyzer import analyze_with_ai
+from .ratelimit import RateLimiter
+from .service import run_analysis
+from .status import system_status
 
+VERSION = "0.5.0"
 
 app = FastAPI(
     title="ScamShield AI API",
-    description="API for scam message risk analysis.",
-    version="0.2.0",
+    description="API for scam message risk analysis and scam-safety questions.",
+    version=VERSION,
 )
 
+# In Docker the browser reaches the API through the nginx /api proxy on the same
+# origin, so CORS only matters for the Vite dev server.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
 
+# Requests per client per minute on /analyze. 0 switches the limit off.
+limiter = RateLimiter(limit=int(os.getenv("RATE_LIMIT_PER_MINUTE", "30")))
+
 
 class AnalyzeRequest(BaseModel):
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=10000,
-        description="Message to analyse for potential scam indicators.",
-    )
-    language: Literal["en", "hi"] = Field(
-        default="en",
-        description="Language for the AI explanation: English (en) or Hindi (hi).",
-    )
+    message: str = Field(..., min_length=1, max_length=10000)
+    # "auto" detects English, Hindi (Devanagari) or Hinglish from the message.
+    language: Literal["en", "hi", "hinglish", "auto"] = "auto"
+    # "check" returns a risk report; "ask" answers a general scam question.
+    mode: Literal["check", "ask"] = "check"
+    # Optional: the person says whether they know who sent the message.
+    sender: Literal["unknown", "known"] | None = None
 
 
-@app.get("/health", tags=["Health"])
+def _client_key(request: Request) -> str:
+    # Behind the nginx proxy the real address arrives in X-Forwarded-For. This is
+    # fine for abuse protection but it is not an authentication mechanism.
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    return forwarded or (request.client.host if request.client else "unknown")
+
+
+@app.get("/health")
 def health_check():
-    return {
-        "status": "healthy",
-        "service": "scamshield-ai-api",
-        "version": "0.2.0",
-    }
+    return {"status": "healthy", "service": "scamshield-ai-api", "version": VERSION}
 
 
-@app.get("/", tags=["Root"])
+@app.get("/status")
+def status():
+    """What the optional AI model and URL checker are doing right now."""
+    return {"version": VERSION, **system_status()}
+
+
+@app.get("/")
 def root():
-    return {
-        "message": "Welcome to ScamShield AI API",
-        "docs": "/docs",
-    }
+    return {"message": "Welcome to ScamShield AI API", "docs": "/docs"}
 
 
-@app.post("/analyze", tags=["Scam Analysis"])
-def analyze(request: AnalyzeRequest):
-    # Keep the established rule-based detector as the primary scorer.
-    result = analyze_message(request.message)
+@app.post("/analyze")
+def analyze(payload: AnalyzeRequest, request: Request):
+    allowed, retry_after = limiter.check(_client_key(request))
 
-    # Check URLs with the existing Google Safe Browsing integration.
-    urls = extract_urls(request.message)
-    reputation = check_url_reputation(urls)
-    result["url_reputation"] = reputation
-
-    # Preserve existing behavior for known threat URLs.
-    if reputation["status"] == "unsafe":
-        result["risk_score"] = min(100, result.get("risk_score", 0) + 50)
-        score = result["risk_score"]
-
-        if score >= 50:
-            result["risk_level"] = "high"
-        elif score >= 25:
-            result["risk_level"] = "medium"
-        else:
-            result["risk_level"] = "low"
-
-        result.setdefault("indicators", []).append(
-            "Google Safe Browsing reported a known threat URL."
-        )
-        result.setdefault("recommendations", []).append(
-            "Do not open this URL or enter personal information."
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please wait a moment and try again.",
+            headers={"Retry-After": str(retry_after)},
         )
 
-    # AI explains the message in the selected UI language. It does not set
-    # or change the detector's risk score or risk level.
-    result["ai_analysis"] = analyze_with_ai(
-        request.message,
-        result,
-        language=request.language,
-    )
-
-    return result
+    return run_analysis(payload.message, payload.language, payload.mode, payload.sender)

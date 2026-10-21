@@ -59,8 +59,10 @@ def test_prize_and_processing_fee_message():
 
     result = analyze_message(message)
 
-    assert result["risk_score"] == 25
-    assert result["risk_level"] == "medium"
+    # A prize that needs a fee to be released is advance-fee fraud: the prize
+    # signal (35) plus the advance-fee signal (30).
+    assert result["risk_score"] == 65
+    assert result["risk_level"] == "high"
     assert any(
         "prize, reward, payment" in indicator
         for indicator in result["indicators"]
