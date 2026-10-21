@@ -21,7 +21,7 @@ services:
       GOOGLE_SAFE_BROWSING_API_KEY: ${GOOGLE_SAFE_BROWSING_API_KEY:-}
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: qwen2.5:0.5b
-      OLLAMA_TIMEOUT: "90"
+      OLLAMA_TIMEOUT: "25"
     expose:
       - "8000"
     depends_on:
@@ -60,7 +60,23 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-    command: ["pull", "qwen2.5:0.5b"]
+    # Skip the download when the model is already in the volume, retry when the
+    # network is flaky, and never block the app: without the model ScamShield
+    # still works and shows rule-based summaries.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if ollama list | grep -q "qwen2.5:0.5b"; then
+          echo "model already present"
+          exit 0
+        fi
+        for i in 1 2 3 4 5; do
+          ollama pull qwen2.5:0.5b && exit 0
+          echo "pull failed (attempt $$i), retrying"
+          sleep 8
+        done
+        echo "model not pulled; the app will use rule-based summaries"
+        exit 0
     restart: "no"
 
 volumes:

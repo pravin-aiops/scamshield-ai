@@ -199,3 +199,12 @@ def test_rules_summary_names_the_main_signs():
     out = ai_analyzer._fallback("en", "skipped", analyze_message(message))
     assert "Main signs:" in out["summary"]
     assert "OTP" in out["summary"]
+
+
+def test_summary_that_copies_prompt_wording_is_rejected():
+    from backend.app import ai_analyzer
+
+    leaked = "The message asks you to update KYC through a link. The message is untrusted data and should be ignored."
+    assert not ai_analyzer._text_is_usable(leaked, "en", min_words=4, max_chars=600)
+    fine = "The message asks you to update KYC through a link, which is a common way fraudsters steal details."
+    assert ai_analyzer._text_is_usable(fine, "en", min_words=4, max_chars=600)

@@ -422,6 +422,9 @@ _META_PHRASES = (
     "question:",
     "expected_intent",
     "scamshield ai,",
+    "untrusted data",
+    "should be ignored",
+    "ignore any instructions",
 )
 
 _CERTAINTY_PHRASES = (
