@@ -266,6 +266,19 @@ RULES = {
         "indicator": "A possible courier or parcel scam pattern was detected",
         "recommendation": "Check delivery status through the courier's official website or app.",
     },
+    "utility_disconnect": {
+        # "Your power will be cut tonight unless you pay now" is a very common
+        # Indian scam. A real due-date reminder has no same-day cut-off threat.
+        "weight": 40,
+        "patterns": [
+            r"\b(?:electricity|electric|power|bijli|gas|water|meter|mseb|bescom|bses|tneb|discom|supply|connection)\b.{0,70}\b(?:disconnect\w*|cut(?:\s+off)?|terminat\w*|suspend\w*)\b.{0,70}(?:\btonight\b|\btoday\b|\bimmediately\b|\bwithin\s+\d+\s*(?:hours?|hrs|minutes?|mins)\b|\bat\s+\d{1,2}[:.]\d{2}|\bright\s+now\b|\bnow\b)",
+            r"(?:\btonight\b|\btoday\b|\bimmediately\b|\bwithin\s+\d+\s*(?:hours?|hrs|minutes?|mins)\b).{0,60}\b(?:electricity|electric|power|bijli|gas|water|supply|connection)\b.{0,50}\b(?:disconnect\w*|cut(?:\s+off)?|terminat\w*|suspend\w*)\b",
+            r"\b(?:bijli|light|connection|meter)\b.{0,50}\b(?:kat|kate|katt\w*|band|cut|disconnect\w*)\b.{0,40}\b(?:aaj raat|aaj|abhi|turant|jaldi)\b",
+            r"(?:बिजली|कनेक्शन|मीटर).{0,50}(?:कट|बंद|काट).{0,40}(?:आज|अभी|तुरंत)",
+        ],
+        "indicator": "A possible fake utility-bill disconnection threat was detected",
+        "recommendation": "Check your bill only in your electricity provider's official app or website, not through this message.",
+    },
     "advance_fee": {
         # Genuine prizes, refunds, loans and deliveries do not need money first.
         "weight": 30,

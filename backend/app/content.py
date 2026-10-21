@@ -222,6 +222,23 @@ FINDING_CONTENT: dict[str, dict[str, dict[str, str]]] = {
             "action": "Delivery status courier ki official app ya website par check karein, message ke link se nahi.",
         },
     },
+    "utility_disconnect": {
+        "en": {
+            "label": "Threat to cut electricity, gas or water supply unless you pay now",
+            "why": "Fake bill messages claim your supply will be cut tonight so you pay in a hurry through a link or a number. Real providers do not cut supply on a same-day text.",
+            "action": "Check your bill only in your provider’s official app or website, or call the number printed on your bill.",
+        },
+        "hi": {
+            "label": "अभी भुगतान न करने पर बिजली, गैस या पानी की सप्लाई कटने की धमकी",
+            "why": "नकली बिल संदेश कहते हैं कि आज रात सप्लाई कट जाएगी ताकि आप जल्दी में लिंक या नंबर से भुगतान कर दें। असली कंपनियाँ उसी दिन के एक संदेश पर सप्लाई नहीं काटतीं।",
+            "action": "बिल अपनी कंपनी के आधिकारिक ऐप या वेबसाइट पर ही देखें, या बिल पर छपे नंबर पर कॉल करें।",
+        },
+        "hinglish": {
+            "label": "Abhi payment na karne par bijli, gas ya paani ki supply kat jaane ki dhamki",
+            "why": "Fake bill message kehte hain ki aaj raat supply kat jayegi, taaki aap jaldi me link ya number se payment kar dein. Asli company usi din ke ek message par supply nahi kaatti.",
+            "action": "Bill sirf apni company ki official app ya website par dekhein, ya bill par chhape number par call karein.",
+        },
+    },
     "url": {
         "en": {
             "label": "Contains a link",
@@ -288,6 +305,7 @@ FINDING_ORDER = [
     "impersonation",
     "job_task_scam",
     "courier_scam",
+    "utility_disconnect",
     "urgency",
     "lookalike_domain",
     "short_url",

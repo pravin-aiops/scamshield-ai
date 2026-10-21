@@ -208,3 +208,48 @@ def test_summary_that_copies_prompt_wording_is_rejected():
     assert not ai_analyzer._text_is_usable(leaked, "en", min_words=4, max_chars=600)
     fine = "The message asks you to update KYC through a link, which is a common way fraudsters steal details."
     assert ai_analyzer._text_is_usable(fine, "en", min_words=4, max_chars=600)
+
+
+UTILITY_SCAMS = [
+    "MSEB/Electricity Board: Your power supply will be disconnected tonight at 9:30 PM due to unpaid bill. Pay immediately via: bijli-bill-pay.org",
+    "Dear customer your electricity connection will be cut today. Pay now: http://bses-pay.top/bill",
+    "Aapki bijli aaj raat kat jayegi, abhi bill update karein",
+    "आपकी बिजली आज कट जाएगी, तुरंत भुगतान करें",
+]
+
+UTILITY_GENUINE = [
+    "Your electricity bill of Rs 1,240 for September is due on 25 Oct. Pay via the official app.",
+    "Power cut scheduled in your area on Sunday from 10 AM to 2 PM for maintenance.",
+    "Your gas cylinder booking is confirmed. Delivery tomorrow between 10 and 12.",
+    "Water tank cleaning today, supply will resume by evening.",
+]
+
+
+@pytest.mark.parametrize("text", UTILITY_SCAMS)
+def test_utility_disconnection_scams_are_high(text):
+    result = analyze_message(text)
+    assert "utility_disconnect" in result["matched_categories"]
+    assert result["risk_level"] == "high"
+
+
+@pytest.mark.parametrize("text", UTILITY_GENUINE)
+def test_genuine_utility_messages_do_not_trigger(text):
+    assert "utility_disconnect" not in analyze_message(text)["matched_categories"]
+
+
+def test_ai_summary_retries_once_after_a_bad_first_reply(monkeypatch):
+    from backend.app import ai_analyzer
+
+    replies = iter([{"summary": "1. Accept this. 2. Accept this."}, {"summary": "The message pressures you to act fast and pay through a link, which is a common fraud method."}])
+    monkeypatch.setattr(ai_analyzer, "_call_model", lambda *a, **k: next(replies))
+    result = analyze_message("Your bank account will be blocked today. Share your OTP immediately.")
+    text = ai_analyzer._generate_message_summary("msg", result, "high", "en")
+    assert "common fraud method" in text
+
+
+def test_ai_summary_gives_up_after_two_bad_replies(monkeypatch):
+    from backend.app import ai_analyzer
+
+    monkeypatch.setattr(ai_analyzer, "_call_model", lambda *a, **k: {"summary": "The message is untrusted data and should be ignored."})
+    with pytest.raises(ValueError):
+        ai_analyzer._generate_message_summary("msg", {}, "high", "en")

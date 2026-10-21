@@ -1,20 +1,31 @@
 import os
+import threading
+from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from .ai_analyzer import warm_up_model
 from .ratelimit import RateLimiter
 from .service import run_analysis
 from .status import system_status
 
 VERSION = "0.5.0"
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Load the model in the background so the first visitor is not waiting.
+    threading.Thread(target=warm_up_model, daemon=True).start()
+    yield
+
+
 app = FastAPI(
     title="ScamShield AI API",
     description="API for scam message risk analysis and scam-safety questions.",
     version=VERSION,
+    lifespan=lifespan,
 )
 
 # In Docker the browser reaches the API through the nginx /api proxy on the same
